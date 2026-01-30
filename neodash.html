@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NeoDash Community Browser</title>
+    <style>
+        /* --- CSS VARIABLES & RESET --- */
+        :root {
+            --bg: #121212;
+            --card-bg: #1e1e1e;
+            --text-main: #ffffff;
+            --text-muted: #b0b0b0;
+            --primary: #007bff;
+            --primary-hover: #0056b3;
+            --border: #333333;
+            --accent-pink: #ff00ff;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            min-height: 100vh;
+        }
+
+        /* --- LAYOUT --- */
+        header {
+            background-color: var(--card-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 0 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: #fff;
+            text-decoration: none;
+            letter-spacing: -0.5px;
+        }
+
+        .logo span {
+            color: var(--primary);
+        }
+
+        nav {
+            display: flex;
+            gap: 20px;
+        }
+
+        .nav-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            padding: 8px 12px;
+            border-radius: 4px;
+            transition: color 0.2s, background 0.2s;
+        }
+
+        .nav-btn:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .nav-btn.active {
+            color: #fff;
+            background: rgba(0, 123, 255, 0.1);
+            color: var(--primary);
+        }
+
+        main {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        /* --- UI COMPONENTS --- */
+        .page {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .btn:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-full {
+            width: 100%;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            margin-bottom: 6px;
+        }
+
+        input,
+        select {
+            width: 100%;
+            background-color: var(--bg);
+            border: 1px solid var(--border);
+            color: white;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 0.95rem;
+        }
+
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        /* --- HOME PAGE --- */
+        .home-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+        }
+
+        .home-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            transition: transform 0.2s, border-color 0.2s;
+            cursor: pointer;
+        }
+
+        .home-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--primary);
+        }
+
+        .home-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+            display: block;
+        }
+
+        /* --- HALL OF FAME --- */
+        .hof-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .hof-table th {
+            text-align: left;
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .hof-table td {
+            padding: 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .hof-table tr:hover {
+            background-color: rgba(255, 255, 255, 0.02);
+        }
+
+        .rank {
+            font-weight: bold;
+            color: var(--primary);
+            width: 60px;
+        }
+
+        .score {
+            font-family: monospace;
+            font-size: 1.1em;
+            text-align: right;
+        }
+
+        /* --- LEVEL BROWSER --- */
+        .level-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .level-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            transition: border-color 0.2s;
+        }
+
+        .level-card:hover {
+            border-color: var(--primary);
+        }
+
+        .level-info {
+            padding: 16px;
+        }
+
+        .level-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            font-size: 1.1rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .level-author {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-bottom: 15px;
+        }
+
+        .level-stats {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 12px;
+        }
+
+        .tag {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 6px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            color: #fff;
+            margin-left: 7px;
+        }
+
+        .search-bar {
+            display: grid;
+            grid-template-columns: 1fr 150px 100px 150px;
+            gap: 15px;
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            align-items: end;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            margin-top: 40px;
+        }
+
+        .pagination span {
+            color: var(--primary);
+            font-weight: bold;
+            font-family: monospace;
+        }
+
+        .btn-icon {
+            padding: 8px 12px;
+        }
+
+        /* Loading Overlay */
+        #loader {
+            position: fixed;
+            inset: 0;
+            background: rgba(18, 18, 18, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 1000;
+            transition: opacity 0.3s;
+        }
+
+        #loader.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(0, 123, 255, 0.3);
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .search-bar {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Loading Overlay -->
+    <div id="loader">
+        <div class="spinner"></div>
+        <div id="loading-text" style="color:var(--text-muted);">Authenticating...</div>
+    </div>
+
+    <!-- Header -->
+    <header>
+        <div class="header-content">
+            <a href="#" class="logo" onclick="app.nav('home')">NEO<span>DASH</span></a>
+            <nav>
+                <button class="nav-btn active" onclick="app.nav('home')" id="nav-home">Home</button>
+                <button class="nav-btn" onclick="app.nav('hof')" id="nav-hof">Hall of Fame</button>
+                <button class="nav-btn" onclick="app.nav('levels')" id="nav-levels">Levels</button>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <!-- PAGE: HOME -->
+        <div id="page-home" class="page active">
+            <div style="text-align:center; margin-bottom:60px;">
+                <h1 style="font-size:2.5rem; margin-bottom:10px;">Welcome to NeoDash</h1>
+                <p style="color:var(--text-muted); max-width:600px; margin:0 auto;">
+                    The unofficial community browser for global leaderboards and user-created levels.
+                </p>
+            </div>
+
+            <div class="home-grid">
+                <div class="home-card" onclick="app.nav('hof')">
+                    <span class="home-icon">🏆</span>
+                    <h2>Hall of Fame</h2>
+                    <p style="color:var(--text-muted); margin-top:10px;">View the top players on the global leaderboard.
+                    </p>
+                </div>
+                <div class="home-card" onclick="app.nav('levels')">
+                    <span class="home-icon">🔍</span>
+                    <h2>Level Browser</h2>
+                    <p style="color:var(--text-muted); margin-top:10px;">Search and filter thousands of community
+                        levels.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- PAGE: HALL OF FAME -->
+        <div id="page-hof" class="page">
+            <h2 style="margin-bottom: 10px;">Hall of Fame</h2>
+            <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom: 30px;">
+                Official Hall of Fame. 1st = 4 pts, 2nd = 2 pts, 3rd = 1 pt. Grid levels award double.
+            </p>
+
+            <div class="card" style="padding:0; overflow:hidden;">
+                <table class="hof-table">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Player</th>
+                            <th style="text-align:right;">Score</th>
+                        </tr>
+                    </thead>
+                    <tbody id="hof-list">
+                        <!-- Items injected here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- PAGE: LEVELS -->
+        <div id="page-levels" class="page">
+            <h2 style="margin-bottom: 20px;">Level Browser</h2>
+
+            <div class="search-bar">
+                <div class="input-group" style="margin:0;">
+                    <label>Search Levels</label>
+                    <input type="text" id="level-search" placeholder="Enter level name...">
+                </div>
+                <div class="input-group" style="margin:0;">
+                    <label>Sort By</label>
+                    <select id="level-sort">
+                        <option value="recent">Recent</option>
+                        <option value="ratings">Top Rated</option>
+                        <option value="downloads">Downloads</option>
+                    </select>
+                </div>
+                <div class="input-group" style="margin:0;">
+                    <label>Page</label>
+                    <input type="number" id="level-page" value="1" min="1">
+                </div>
+                <button class="btn" onclick="app.fetchLevels()">Search</button>
+            </div>
+
+            <div id="levels-container" class="level-grid">
+                <!-- Levels injected here -->
+            </div>
+
+            <div class="pagination">
+                <button class="btn btn-icon" onclick="app.changePage(-1)">❮</button>
+                <span id="page-display">PAGE 1</span>
+                <button class="btn btn-icon" onclick="app.changePage(1)">❯</button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // --- API CONFIG & UTILS ---
+        const API_URL = "https://neodashbrowse.francobetancourt.workers.dev";
+
+        // Helper: Decode Base64 safely
+        const decode64 = (str) => {
+            try { return atob(str); } catch (e) { return str; }
+        };
+        // Helper: Encode Base64
+        const encode64 = (str) => btoa(str);
+
+        // Helper: Parse Key-Value Text Response
+        const parseKV = (text) => {
+            const result = {};
+            if (!text) return result;
+            text.split('&').forEach(pair => {
+                const [k, v] = pair.split('=');
+                if (k) result[k] = v;
+            });
+            return result;
+        };
+
+        // Helper: Convert Hex RGB String (250x140) to Data URL
+        const hexToThumb = (hex) => {
+            if (!hex || hex.length < 100) return null; // Basic validation
+
+            const w = 250;
+            const h = 140;
+
+            // Create canvas
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            const imgData = ctx.createImageData(w, h);
+
+            // Hex is string of bytes: R G B R G B ...
+            // We need to fill imgData.data: R G B A R G B A ...
+            // 2 hex chars = 1 byte
+
+            let hexIdx = 0;
+            for (let i = 0; i < imgData.data.length; i += 4) {
+                // R
+                imgData.data[i] = parseInt(hex.substr(hexIdx, 2), 16);
+                hexIdx += 2;
+                // G
+                imgData.data[i + 1] = parseInt(hex.substr(hexIdx, 2), 16);
+                hexIdx += 2;
+                // B
+                imgData.data[i + 2] = parseInt(hex.substr(hexIdx, 2), 16);
+                hexIdx += 2;
+                // A
+                imgData.data[i + 3] = 255;
+            }
+
+            ctx.putImageData(imgData, 0, 0);
+            return canvas.toDataURL();
+        };
+
+        const AppState = {
+            user: null,
+            levels: [],
+            page: 1
+        };
+
+        const Api = {
+            // Updated Authenticate: Expects Base64 strings, returns Promise<{uniqueId, token}>
+            authenticate: async (steamId, displayName) => {
+                const params = new URLSearchParams();
+                // The API expects Base64 encoded values.
+                // We assume inputs are ALREADY Base64 encoded based on user feedback.
+                params.append('steamId', steamId);
+                params.append('displayName', displayName);
+                params.append('ver', '102a');
+
+                const res = await fetch(`${API_URL}/authenticate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: params
+                });
+                const text = await res.text();
+                return parseKV(text);
+            },
+
+            getHallOfFame: async () => {
+                const params = new URLSearchParams({
+                    uniqueId: AppState.user.uniqueId,
+                    token: AppState.user.token
+                });
+                const res = await fetch(`${API_URL}/getHallOfFame`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: params
+                });
+                const text = await res.text();
+                // Format: NAME,SCORE/NAME,SCORE/...
+                return text.split('/').map(entry => {
+                    const [n, s] = entry.split(',');
+                    return { name: decode64(n), score: parseInt(s) || 0 };
+                }).filter(e => e.name && !isNaN(e.score));
+            },
+
+            searchLevels: async (page = 1, sortBy = 'recent', query = '') => {
+                const params = new URLSearchParams({
+                    uniqueId: AppState.user.uniqueId,
+                    token: AppState.user.token,
+                    page: page,
+                    sortBy: sortBy,
+                    withThumbnails: 'TRUE'
+                });
+                if (query) params.append('searchFilter', query);
+
+                const res = await fetch(`${API_URL}/requestLevelList`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: params
+                });
+                const text = await res.text();
+                // Format: levelId=...&... \levelId=...
+                if (!text) return [];
+                const chunks = text.split('\\');
+                return chunks.map(chunk => {
+                    const d = parseKV(chunk);
+                    if (!d.levelId) return null;
+                    return {
+                        id: d.levelId, // Base64 name
+                        author: d.levelAuthor, // Base64 author
+                        rating: parseFloat(d.levelRating),
+                        downloads: parseInt(d.levelDownloads),
+                        difficulty: d.levelDifficulty !== 'null' ? d.levelDifficulty : null,
+                        thumb: d.levelThumbnail ? hexToThumb(d.levelThumbnail) : null
+                    };
+                }).filter(Boolean);
+            }
+        };
+
+        // --- UI LOGIC ---
+        const app = {
+            init: async () => {
+                // Auto Auth using provided credentials
+                // Credentials provided are ALREADY Base64.
+                try {
+                    const steamId = "YWxAB3ZedGgGb3sEYXVlB2k";
+                    const displayName = "Qm9vc3RlcmZyYW5r";
+
+                    const data = await Api.authenticate(steamId, displayName);
+
+                    if (data.uniqueId && data.token) {
+                        AppState.user = data;
+                        document.getElementById('loader').classList.add('hidden');
+                    } else {
+                        throw new Error('Auth failed');
+                    }
+                } catch (e) {
+                    console.error(e);
+                    document.getElementById('loading-text').textContent = "Authentication Failed. Check console.";
+                    document.getElementById('loading-text').style.color = "red";
+                }
+            },
+
+            nav: (pageId) => {
+                // Hide all pages
+                document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
+                document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+
+                // Show target
+                document.getElementById(`page-${pageId}`).classList.add('active');
+                if (pageId !== 'home') document.getElementById(`nav-${pageId}`).classList.add('active');
+
+                // Load data if needed
+                if (pageId === 'hof') app.fetchHoF();
+                if (pageId === 'levels' && AppState.levels.length === 0) app.fetchLevels();
+            },
+
+            fetchHoF: async () => {
+                const tbody = document.getElementById('hof-list');
+                tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:20px;">Loading...</td></tr>';
+
+                try {
+                    const data = await Api.getHallOfFame();
+                    tbody.innerHTML = data.map((p, i) => `
+                        <tr>
+                            <td class="rank">#${i + 1}</td>
+                            <td>${p.name}</td>
+                            <td class="score">${p.score.toLocaleString()}</td>
+                        </tr>
+                    `).join('');
+                } catch (e) {
+                    tbody.innerHTML = '<tr><td colspan="3" style="color:red; text-align:center;">Failed to load Hall of Fame</td></tr>';
+                }
+            },
+
+            fetchLevels: async () => {
+                const grid = document.getElementById('levels-container');
+                const pageNum = parseInt(document.getElementById('level-page').value);
+                const sortBy = document.getElementById('level-sort').value;
+                const search = document.getElementById('level-search').value;
+
+                AppState.page = pageNum;
+                document.getElementById('page-display').textContent = `PAGE ${pageNum}`;
+
+                grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px;">Loading Levels...</div>';
+
+                try {
+                    const data = await Api.searchLevels(pageNum, sortBy, search);
+                    if (data.length === 0) {
+                        grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--text-muted);">No levels found.</div>';
+                        return;
+                    }
+
+                    grid.innerHTML = data.map(l => `
+                        <div class="level-card">
+                            ${l.thumb ? `<img src="${l.thumb}" style="width:100%; height:140px; object-fit:cover; display:block;" alt="Level Thumbnail">` : ''}
+                            <div class="level-info">
+                                <div style="display:flex; justify-content:space-between;">
+                                    <div class="level-title" title="${decode64(l.id)}">${decode64(l.id)}</div>
+                                    ${l.difficulty ? `<div class="tag">${l.difficulty}</div>` : ''}
+                                </div>
+                                <div class="level-author">by ${decode64(l.author)}</div>
+                                <div class="level-stats">
+                                    <span>★ ${l.rating > -1 ? l.rating.toFixed(1) : '-'}</span>
+                                    <span>⬇ ${l.downloads}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                } catch (e) {
+                    grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:red;">Failed to load levels.</div>';
+                }
+            },
+
+            changePage: (delta) => {
+                const input = document.getElementById('level-page');
+                let newPage = parseInt(input.value) + delta;
+                if (newPage < 1) newPage = 1;
+                input.value = newPage;
+                app.fetchLevels();
+            }
+        };
+
+        // Start App
+        window.addEventListener('load', app.init);
+    </script>
+</body>
+
+</html>
