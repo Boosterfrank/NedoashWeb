@@ -7,12 +7,15 @@ export default {
   theme: {
     extend: {
       colors: {
-        neon: {
-          blue: '#00f3ff',
-          pink: '#ff00ff',
-          orange: '#ff9900',
-          dark: '#0a0a12',
-          surface: '#151520'
+        // Replacing "neon" with specific clean colors based on the image
+        app: {
+          bg: '#121212',       // Very dark grey/black
+          card: '#1e1e1e',     // Slightly lighter for cards
+          text: '#ffffff',     // White text
+          muted: '#b0b0b0',    // Muted text
+          blue: '#007bff',     // Bootstrap-ish blue
+          blueHover: '#0056b3',
+          border: '#333333'
         }
       },
       fontFamily: {
