@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NeoDash Community Browser</title>
+    <title>Neodash Browser</title>
     <style>
         /* --- CSS VARIABLES & RESET --- */
         :root {
@@ -52,7 +52,7 @@
         .logo {
             font-size: 1.25rem;
             font-weight: 800;
-            color: #fff;
+            color: #ff0048;
             text-decoration: none;
             letter-spacing: -0.5px;
         }
@@ -372,6 +372,97 @@
                 grid-template-columns: 1fr;
             }
         }
+
+        /* --- LEVEL DETAILS COMPONENT --- */
+        .level-header {
+            display: flex;
+            gap: 40px;
+            margin-bottom: 40px;
+            flex-wrap: wrap;
+        }
+
+        .level-thumb-large {
+            width: 500px;
+            max-width: 100%;
+            height: 280px;
+            object-fit: cover;
+            border-radius: 12px;
+            border: 2px solid var(--border);
+            background: #000;
+        }
+
+        .level-meta {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .meta-stat {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+            font-size: 1.1rem;
+            color: var(--text-muted);
+        }
+
+        .meta-stat strong {
+            color: #fff;
+            min-width: 120px;
+        }
+
+        /* Leaderboard */
+        .times-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 800px;
+        }
+
+        .time-row {
+            display: flex;
+            align-items: center;
+            background: var(--card-bg);
+            padding: 15px 20px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        .time-rank {
+            font-size: 1.5rem;
+            font-weight: bold;
+            width: 60px;
+            text-align: center;
+            margin-right: 20px;
+        }
+
+        .rank-1 {
+            color: #FFD700;
+            text-shadow: 0 0 20px rgb(255, 215, 0);
+        }
+
+        .rank-2 {
+            color: #C0C0C0;
+            text-shadow: 0 0 20px rgb(192, 192, 192);
+        }
+
+        .rank-3 {
+            color: #CD7F32;
+            text-shadow: 0 0 20px rgb(205, 127, 50);
+        }
+
+        .time-player {
+            flex: 1;
+            font-weight: 500;
+            font-size: 1.1rem;
+        }
+
+        .time-value {
+            font-family: monospace;
+            font-size: 1.2rem;
+            color: var(--primary);
+        }
     </style>
 </head>
 
@@ -399,9 +490,10 @@
         <!-- PAGE: HOME -->
         <div id="page-home" class="page active">
             <div style="text-align:center; margin-bottom:60px;">
-                <h1 style="font-size:2.5rem; margin-bottom:10px;">Welcome to NeoDash</h1>
+                <h1 style="font-size:2.5rem; margin-bottom:10px;">Welcome to Neodash Browser</h1>
                 <p style="color:var(--text-muted); max-width:600px; margin:0 auto;">
-                    The unofficial community browser for global leaderboards and user-created levels.
+                    The unofficial Neodash browser for global leaderboards and user-created levels. Made by Boosterfrank
+                    :)
                 </p>
             </div>
 
@@ -417,6 +509,15 @@
                     <h2>Level Browser</h2>
                     <p style="color:var(--text-muted); margin-top:10px;">Search and filter thousands of community
                         levels.</p>
+                </div>
+                <div class="home-card" style="opacity:0.5; cursor:not-allowed; border-color:transparent;">
+                    <span class="home-icon">✏️</span>
+                    <h2>Level Editor</h2>
+                    <p style="color:var(--text-muted); margin-top:10px;">Create and upload your own levels to Neodash.
+                    </p>
+                    <span
+                        style="display:inline-block; margin-top:15px; background:rgba(255,255,255,0.1); padding:4px 8px; border-radius:4px; font-size:0.8rem; font-weight:bold;">COMING
+                        SOON</span>
                 </div>
             </div>
         </div>
@@ -456,9 +557,9 @@
                 <div class="input-group" style="margin:0;">
                     <label>Sort By</label>
                     <select id="level-sort">
-                        <option value="recent">Recent</option>
                         <option value="ratings">Top Rated</option>
                         <option value="downloads">Downloads</option>
+                        <option value="recent">Recent</option>
                     </select>
                 </div>
                 <div class="input-group" style="margin:0;">
@@ -476,6 +577,24 @@
                 <button class="btn btn-icon" onclick="app.changePage(-1)">❮</button>
                 <span id="page-display">PAGE 1</span>
                 <button class="btn btn-icon" onclick="app.changePage(1)">❯</button>
+            </div>
+        </div>
+
+        <!-- PAGE: LEVEL DETAILS -->
+        <div id="page-details" class="page">
+            <button onclick="app.nav('levels')" class="btn"
+                style="background:transparent; border:1px solid var(--border); margin-bottom:20px;">
+                ← Back to Browser
+            </button>
+
+            <div id="details-content">
+                <!-- Injected via JS -->
+            </div>
+
+            <h3 style="margin: 40px 0 20px 0; border-bottom: 1px solid var(--border); padding-bottom:10px;">Top Times
+                (Top 5)</h3>
+            <div id="times-container" class="times-list">
+                <!-- Injected via JS -->
             </div>
         </div>
     </main>
@@ -613,6 +732,46 @@
                         thumb: d.levelThumbnail ? hexToThumb(d.levelThumbnail) : null
                     };
                 }).filter(Boolean);
+            },
+
+            getLevelTimes: async (levelId) => {
+                const params = new URLSearchParams({
+                    uniqueId: AppState.user.uniqueId,
+                    token: AppState.user.token,
+                    mapId: levelId,
+                    numberOfTimes: 5,
+                    includeGhosts: 'false'
+                });
+
+                const res = await fetch(`${API_URL}/getTimes`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: params
+                });
+                const text = await res.text();
+                // Format: playerPos:88{finishTime:00.33.545;mapId:bGV2ZWwxLTA5YQ==;playerId:bmV5dg==}{...}
+
+                const matches = text.match(/\{([^}]+)\}/g);
+                if (!matches) return [];
+
+                return matches.map(m => {
+                    // Remove braces
+                    const inner = m.slice(1, -1);
+                    // Split by semicolon (assuming format key:value;key:value)
+                    const parts = inner.split(';');
+                    const obj = {};
+                    parts.forEach(p => {
+                        const [k, v] = p.split(':');
+                        if (k) obj[k.trim()] = v;
+                    });
+
+                    if (!obj.finishTime || !obj.playerId) return null;
+
+                    return {
+                        time: obj.finishTime,
+                        player: decode64(obj.playerId)
+                    };
+                }).filter(Boolean);
             }
         };
 
@@ -647,7 +806,10 @@
 
                 // Show target
                 document.getElementById(`page-${pageId}`).classList.add('active');
-                if (pageId !== 'home') document.getElementById(`nav-${pageId}`).classList.add('active');
+
+                // Only highlight Nav button if it exists
+                const navBtn = document.getElementById(`nav-${pageId}`);
+                if (navBtn) navBtn.classList.add('active');
 
                 // Load data if needed
                 if (pageId === 'hof') app.fetchHoF();
@@ -685,13 +847,17 @@
 
                 try {
                     const data = await Api.searchLevels(pageNum, sortBy, search);
+
+                    // Store levels for Detail View
+                    AppState.levels = data;
+
                     if (data.length === 0) {
                         grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--text-muted);">No levels found.</div>';
                         return;
                     }
 
-                    grid.innerHTML = data.map(l => `
-                        <div class="level-card">
+                    grid.innerHTML = data.map((l, index) => `
+                        <div class="level-card" onclick="app.viewLevel(${index})" style="cursor:pointer;">
                             ${l.thumb ? `<img src="${l.thumb}" style="width:100%; height:140px; object-fit:cover; display:block;" alt="Level Thumbnail">` : ''}
                             <div class="level-info">
                                 <div style="display:flex; justify-content:space-between;">
@@ -707,7 +873,62 @@
                         </div>
                     `).join('');
                 } catch (e) {
+                    console.error(e);
                     grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:red;">Failed to load levels.</div>';
+                }
+            },
+
+            viewLevel: async (index) => {
+                const level = AppState.levels[index];
+                if (!level) return;
+
+                app.nav('details');
+
+                // Render Details
+                const detailsContainer = document.getElementById('details-content');
+                detailsContainer.innerHTML = `
+                    <div class="level-header">
+                        ${level.thumb ? `<img src="${level.thumb}" class="level-thumb-large" />` : '<div class="level-thumb-large" style="display:flex;align-items:center;justify-content:center;color:#333;">No Thumbnail</div>'}
+                        <div class="level-meta">
+                            <h1 style="font-size:2.5rem; margin:0 0 20px 0;">${decode64(level.id)}</h1>
+                            <div class="meta-stat"><strong>Author:</strong> <span>${decode64(level.author)}</span></div>
+                            <div class="meta-stat"><strong>Difficulty:</strong> <span>${level.difficulty || 'N/A'}</span></div>
+                            <div class="meta-stat"><strong>Downloads:</strong> <span>${level.downloads}</span></div>
+                            <div class="meta-stat"><strong>Rating:</strong> <span>${level.rating > -1 ? level.rating.toFixed(1) + ' / 5.0' : 'Unrated'}</span></div>
+                            <button class="btn" disabled style="margin-top:20px; background-color: var(--primary); opacity: 0.5; width: fit-content;">Open in Level Editor (Coming Soon)</button>
+                        </div>
+                    </div>
+                `;
+
+                // Fetch Times
+                const timesContainer = document.getElementById('times-container');
+                timesContainer.innerHTML = '<div style="padding:20px; text-align:center;">Loading times...</div>';
+
+                try {
+                    const times = await Api.getLevelTimes(level.id);
+
+                    if (times.length === 0) {
+                        timesContainer.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-muted);">No times recorded.</div>';
+                        return;
+                    }
+
+                    timesContainer.innerHTML = times.map((t, i) => {
+                        let rankClass = '';
+                        if (i === 0) { rankClass = 'rank-1'; }
+                        else if (i === 1) { rankClass = 'rank-2'; }
+                        else if (i === 2) { rankClass = 'rank-3'; }
+
+                        return `
+                            <div class="time-row">
+                                <div class="time-rank ${rankClass}">${i + 1}</div>
+                                <div class="time-player">${t.player}</div>
+                                <div class="time-value">${t.time}</div>
+                            </div>
+                        `;
+                    }).join('');
+
+                } catch (e) {
+                    timesContainer.innerHTML = '<div style="color:red; text-align:center;">Failed to load times.</div>';
                 }
             },
 
