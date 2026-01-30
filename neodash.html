@@ -52,9 +52,10 @@
         .logo {
             font-size: 1.25rem;
             font-weight: 800;
-            color: #ff0048;
+            color: #ffffff;
             text-decoration: none;
-            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
         }
 
         .logo span {
@@ -477,7 +478,10 @@
     <!-- Header -->
     <header>
         <div class="header-content">
-            <a href="#" class="logo" onclick="app.nav('home')">NEO<span>DASH</span></a>
+            <a href="#" class="logo" onclick="app.nav('home')">
+                <img src="img/neodashfinishing02.png" alt="Neodash" style="height: 80px; width: auto;">
+                Browser
+            </a>
             <nav>
                 <button class="nav-btn active" onclick="app.nav('home')" id="nav-home">Home</button>
                 <button class="nav-btn" onclick="app.nav('hof')" id="nav-hof">Hall of Fame</button>
@@ -499,19 +503,16 @@
 
             <div class="home-grid">
                 <div class="home-card" onclick="app.nav('hof')">
-                    <span class="home-icon">🏆</span>
                     <h2>Hall of Fame</h2>
                     <p style="color:var(--text-muted); margin-top:10px;">View the top players on the global leaderboard.
                     </p>
                 </div>
                 <div class="home-card" onclick="app.nav('levels')">
-                    <span class="home-icon">🔍</span>
                     <h2>Level Browser</h2>
                     <p style="color:var(--text-muted); margin-top:10px;">Search and filter thousands of community
                         levels.</p>
                 </div>
                 <div class="home-card" style="opacity:0.5; cursor:not-allowed; border-color:transparent;">
-                    <span class="home-icon">✏️</span>
                     <h2>Level Editor</h2>
                     <p style="color:var(--text-muted); margin-top:10px;">Create and upload your own levels to Neodash.
                     </p>
@@ -552,11 +553,12 @@
             <div class="search-bar">
                 <div class="input-group" style="margin:0;">
                     <label>Search Levels</label>
-                    <input type="text" id="level-search" placeholder="Enter level name...">
+                    <input type="text" id="level-search" placeholder="Enter level name..."
+                        onkeydown="if(event.key==='Enter') app.fetchLevels()">
                 </div>
                 <div class="input-group" style="margin:0;">
                     <label>Sort By</label>
-                    <select id="level-sort">
+                    <select id="level-sort" onchange="app.fetchLevels()">
                         <option value="ratings">Top Rated</option>
                         <option value="downloads">Downloads</option>
                         <option value="recent">Recent</option>
@@ -566,7 +568,20 @@
                     <label>Page</label>
                     <input type="number" id="level-page" value="1" min="1">
                 </div>
-                <button class="btn" onclick="app.fetchLevels()">Search</button>
+                <div class="input-group" style="margin:0;">
+                    <label>Difficulty</label>
+                    <select id="level-difficulty" onchange="app.fetchLevels()">
+                        <option value="">All Difficulties</option>
+                        <option value="SSS">SSS</option>
+                        <option value="SS">SS</option>
+                        <option value="S">S</option>
+                        <option value="A">A</option>
+                        <option value="B">B</option>
+                        <option value="C">C</option>
+                        <option value="D">D</option>
+                    </select>
+                </div>
+                <!-- Removed button, search is now automatic via events -->
             </div>
 
             <div id="levels-container" class="level-grid">
@@ -701,7 +716,7 @@
                 }).filter(e => e.name && !isNaN(e.score));
             },
 
-            searchLevels: async (page = 1, sortBy = 'recent', query = '') => {
+            searchLevels: async (page = 1, sortBy = 'recent', query = '', difficulty = '') => {
                 const params = new URLSearchParams({
                     uniqueId: AppState.user.uniqueId,
                     token: AppState.user.token,
@@ -710,6 +725,7 @@
                     withThumbnails: 'TRUE'
                 });
                 if (query) params.append('searchFilter', query);
+                if (difficulty) params.append('difficulty', difficulty);
 
                 const res = await fetch(`${API_URL}/requestLevelList`, {
                     method: 'POST',
@@ -839,6 +855,7 @@
                 const pageNum = parseInt(document.getElementById('level-page').value);
                 const sortBy = document.getElementById('level-sort').value;
                 const search = document.getElementById('level-search').value;
+                const difficulty = document.getElementById('level-difficulty').value;
 
                 AppState.page = pageNum;
                 document.getElementById('page-display').textContent = `PAGE ${pageNum}`;
@@ -846,7 +863,7 @@
                 grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px;">Loading Levels...</div>';
 
                 try {
-                    const data = await Api.searchLevels(pageNum, sortBy, search);
+                    const data = await Api.searchLevels(pageNum, sortBy, search, difficulty);
 
                     // Store levels for Detail View
                     AppState.levels = data;
@@ -856,13 +873,24 @@
                         return;
                     }
 
-                    grid.innerHTML = data.map((l, index) => `
+                    grid.innerHTML = data.map((l, index) => {
+                        // Helper for difficulty image (inlined for safety since previous definition was scoped to viewLevel)
+                        const diffMap = {
+                            'S': 'img/S.png', 'SS': 'img/SS.png', 'SSS': 'img/SSS.png',
+                            'A': 'img/__A.png', 'B': 'img/____B.png', 'C': 'img/______C.png', 'D': 'img/D.png'
+                        };
+                        const diffSrc = diffMap[l.difficulty];
+                        const diffHtml = diffSrc
+                            ? `<img src="${diffSrc}" alt="${l.difficulty}" style="height:24px; vertical-align:middle; margin-left:7px;">`
+                            : (l.difficulty ? `<div class="tag">${l.difficulty}</div>` : '');
+
+                        return `
                         <div class="level-card" onclick="app.viewLevel(${index})" style="cursor:pointer;">
                             ${l.thumb ? `<img src="${l.thumb}" style="width:100%; height:140px; object-fit:cover; display:block;" alt="Level Thumbnail">` : ''}
                             <div class="level-info">
                                 <div style="display:flex; justify-content:space-between;">
                                     <div class="level-title" title="${decode64(l.id)}">${decode64(l.id)}</div>
-                                    ${l.difficulty ? `<div class="tag">${l.difficulty}</div>` : ''}
+                                    ${diffHtml}
                                 </div>
                                 <div class="level-author">by ${decode64(l.author)}</div>
                                 <div class="level-stats">
@@ -871,7 +899,8 @@
                                 </div>
                             </div>
                         </div>
-                    `).join('');
+                    `;
+                    }).join('');
                 } catch (e) {
                     console.error(e);
                     grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:red;">Failed to load levels.</div>';
@@ -884,15 +913,49 @@
 
                 app.nav('details');
 
+                // Helper: Get Difficulty Image
+                const getDifficultyImage = (diff) => {
+                    const map = {
+                        'S': 'img/S.png',
+                        'SS': 'img/SS.png',
+                        'SSS': 'img/SSS.png',
+                        'A': 'img/__A.png',
+                        'B': 'img/____B.png',
+                        'C': 'img/______C.png',
+                        'D': 'img/D.png'
+                    };
+                    const src = map[diff];
+                    if (src) {
+                        return `<img src="${src}" alt="${diff}" style="height:24px; vertical-align:middle; margin-left:7px;">`;
+                    }
+                    return diff ? `<div class="tag">${diff}</div>` : '';
+                };
+
                 // Render Details
                 const detailsContainer = document.getElementById('details-content');
+
+                // Get Difficulty Display (Text or Image) for Details Page
+                let diffDisplay = 'N/A';
+                if (level.difficulty) {
+                    const src = {
+                        'S': 'img/S.png', 'SS': 'img/SS.png', 'SSS': 'img/SSS.png',
+                        'A': 'img/__A.png', 'B': 'img/____B.png', 'C': 'img/______C.png', 'D': 'img/D.png'
+                    }[level.difficulty];
+
+                    if (src) {
+                        diffDisplay = `<img src="${src}" alt="${level.difficulty}" style="height:32px; vertical-align:middle;">`;
+                    } else {
+                        diffDisplay = level.difficulty;
+                    }
+                }
+
                 detailsContainer.innerHTML = `
                     <div class="level-header">
                         ${level.thumb ? `<img src="${level.thumb}" class="level-thumb-large" />` : '<div class="level-thumb-large" style="display:flex;align-items:center;justify-content:center;color:#333;">No Thumbnail</div>'}
                         <div class="level-meta">
                             <h1 style="font-size:2.5rem; margin:0 0 20px 0;">${decode64(level.id)}</h1>
                             <div class="meta-stat"><strong>Author:</strong> <span>${decode64(level.author)}</span></div>
-                            <div class="meta-stat"><strong>Difficulty:</strong> <span>${level.difficulty || 'N/A'}</span></div>
+                            <div class="meta-stat"><strong>Difficulty:</strong> <span>${diffDisplay}</span></div>
                             <div class="meta-stat"><strong>Downloads:</strong> <span>${level.downloads}</span></div>
                             <div class="meta-stat"><strong>Rating:</strong> <span>${level.rating > -1 ? level.rating.toFixed(1) + ' / 5.0' : 'Unrated'}</span></div>
                             <button class="btn" disabled style="margin-top:20px; background-color: var(--primary); opacity: 0.5; width: fit-content;">Open in Level Editor (Coming Soon)</button>
