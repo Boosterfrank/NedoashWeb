@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/", "destination": "/NedoashWeb/neodash.html" },
+    { "source": "/img/(.*)", "destination": "/NedoashWeb/img/$1" }
+  ]
+}
