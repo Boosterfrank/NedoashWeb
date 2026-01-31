@@ -566,7 +566,7 @@
                 </div>
                 <div class="input-group" style="margin:0;">
                     <label>Page</label>
-                    <input type="number" id="level-page" value="1" min="1">
+                    <input type="number" id="level-page" value="1" min="1" onkeydown="if(event.key==='Enter') app.fetchLevels()">
                 </div>
                 <div class="input-group" style="margin:0;">
                     <label>Difficulty</label>
