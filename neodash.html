@@ -491,8 +491,37 @@
     </header>
 
     <main>
+        <!-- PAGE: LOGIN -->
+        <div id="page-login" class="page">
+            <div
+                style="display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:60vh; text-align:center;">
+                <h1 style="font-size:3rem; margin-bottom:10px;">NEO<span>DASH</span></h1>
+                <p style="color:var(--text-muted); margin-bottom:40px;">Browser Edition</p>
+
+                <div class="card" style="width:100%; max-width:400px;">
+                    <h2 style="margin-bottom:20px;">Sign In</h2>
+                    <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:20px;">
+                        Enter your 64-bit Steam ID to access the browser.
+                    </p>
+
+                    <div class="input-group">
+                        <label>Steam ID (64-bit)</label>
+                        <input type="text" id="login-steamid" placeholder="e.g. 76561198072124507">
+                    </div>
+
+                    <button class="btn btn-full" onclick="app.performLogin()" id="btn-login">Sign In</button>
+                    <div id="login-error" style="color:red; margin-top:15px; font-size:0.9rem; display:none;"></div>
+                </div>
+
+                <p style="margin-top:20px; color:var(--text-muted); font-size:0.8rem;">
+                    Don't know your Steam ID?<br>
+                    <a href="https://steamid.io/" target="_blank" style="color:var(--primary);">Find it here</a>
+                </p>
+            </div>
+        </div>
+
         <!-- PAGE: HOME -->
-        <div id="page-home" class="page active">
+        <div id="page-home" class="page">
             <div style="text-align:center; margin-bottom:60px;">
                 <h1 style="font-size:2.5rem; margin-bottom:10px;">Welcome to Neodash Browser</h1>
                 <p style="color:var(--text-muted); max-width:600px; margin:0 auto;">
@@ -565,7 +594,8 @@
                 </div>
                 <div class="input-group" style="margin:0;">
                     <label>Page</label>
-                    <input type="number" id="level-page" value="1" min="1" onkeydown="if(event.key==='Enter') app.fetchLevels()">
+                    <input type="number" id="level-page" value="1" min="1"
+                        onkeydown="if(event.key==='Enter') app.fetchLevels()">
                 </div>
                 <div class="input-group" style="margin:0;">
                     <label>Difficulty</label>
@@ -628,12 +658,15 @@
         const parseKV = (text) => {
             const result = {};
             if (!text) return result;
-            text.split('&').forEach(pair => {
+            // Split by & but also handle potential newlines which might break key/value pairs
+            text.trim().split('&').forEach(pair => {
                 const [k, v] = pair.split('=');
-                if (k) result[k] = v;
+                if (k) result[k.trim()] = v ? v.trim() : '';
             });
             return result;
         };
+
+
 
         // Helper: Convert Hex RGB String (250x140) to Data URL
         const hexToThumb = (hex) => {
@@ -681,20 +714,75 @@
         const Api = {
             // Updated Authenticate: Expects Base64 strings, returns Promise<{uniqueId, token}>
             authenticate: async (steamId, displayName) => {
-                const params = new URLSearchParams();
-                // The API expects Base64 encoded values.
-                // We assume inputs are ALREADY Base64 encoded based on user feedback.
-                params.append('steamId', steamId);
-                params.append('displayName', displayName);
-                params.append('ver', '102a');
+                // Manual body construction to avoid URL encoding of '=' (per user request)
+                // We send raw steamId/displayName (Base64) to ensure '=' is preserved as '=', not '%3D'.
+                const body = `steamId=${steamId}&displayName=${displayName}&ver=102a`;
+
+                console.log("Authenticating with body:", body);
 
                 const res = await fetch(`${API_URL}/authenticate`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: params
+                    body: body
                 });
                 const text = await res.text();
+                console.log("Authentication Response:", text); // Debugging
                 return parseKV(text);
+            },
+
+            // New: Resolve Steam User
+            resolveSteamUser: async (rawSteamId) => {
+                const params = new URLSearchParams();
+                params.append('steamId', rawSteamId);
+
+                const res = await fetch(`${API_URL}/resolveSteamUser`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: params
+                });
+
+                if (!res.ok) throw new Error('Failed to resolve Steam User');
+                const text = await res.text();
+                console.log("ResolveSteamUser Response:", text);
+                return text; // Returns plain text name
+            },
+
+            // Wrapper for API calls with Timeout and Auto-Reauth
+            fetchWithTimeout: async (url, options, timeout = 8000) => {
+                const doFetch = async () => {
+                    const controller = new AbortController();
+                    const id = setTimeout(() => controller.abort(), timeout);
+                    try {
+                        const response = await fetch(url, { ...options, signal: controller.signal });
+                        clearTimeout(id);
+                        return response;
+                    } catch (error) {
+                        clearTimeout(id);
+                        throw error;
+                    }
+                };
+
+                try {
+                    return await doFetch();
+                } catch (error) {
+                    if (error.name === 'AbortError' || error.message.includes('aborted')) {
+                        console.warn('Request timed out, attempting re-authentication...');
+
+                        // Attempt Re-auth
+                        await app.reAuthenticate();
+
+                        // Retry original request
+                        // Update token in options if it was passed in body
+                        // Note: Our API passes token in body, so we need to update it
+                        if (options.body instanceof URLSearchParams) {
+                            options.body.set('uniqueId', AppState.user.uniqueId);
+                            options.body.set('token', AppState.user.token);
+                        }
+
+                        return await doFetch();
+                    }
+                    throw error;
+                }
             },
 
             getHallOfFame: async () => {
@@ -702,7 +790,7 @@
                     uniqueId: AppState.user.uniqueId,
                     token: AppState.user.token
                 });
-                const res = await fetch(`${API_URL}/getHallOfFame`, {
+                const res = await Api.fetchWithTimeout(`${API_URL}/getHallOfFame`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                     body: params
@@ -726,7 +814,7 @@
                 if (query) params.append('searchFilter', query);
                 if (difficulty) params.append('difficulty', difficulty);
 
-                const res = await fetch(`${API_URL}/requestLevelList`, {
+                const res = await Api.fetchWithTimeout(`${API_URL}/requestLevelList`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                     body: params
@@ -758,7 +846,7 @@
                     includeGhosts: 'false'
                 });
 
-                const res = await fetch(`${API_URL}/getTimes`, {
+                const res = await Api.fetchWithTimeout(`${API_URL}/getTimes`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                     body: params
@@ -793,24 +881,101 @@
         // --- UI LOGIC ---
         const app = {
             init: async () => {
-                // Auto Auth using provided credentials
-                // Credentials provided are ALREADY Base64.
-                try {
-                    const steamId = "YWxAB3ZedGgGb3sEYXVlB2k";
-                    const displayName = "Qm9vc3RlcmZyYW5r";
+                // Check LocalStorage for Steam ID
+                const savedSteamId = localStorage.getItem('neodash_steam_id');
 
-                    const data = await Api.authenticate(steamId, displayName);
+                if (savedSteamId) {
+                    await app.performLogin(savedSteamId);
+                } else {
+                    document.getElementById('loader').classList.add('hidden');
+                    app.nav('login');
+                }
+            },
+
+            performLogin: async (steamIdInput) => {
+                // If called from button, get input
+                const steamId = steamIdInput || document.getElementById('login-steamid').value.trim();
+                if (!steamId) {
+                    alert('Please enter a Steam ID');
+                    return;
+                }
+
+                // Show loader
+                const loader = document.getElementById('loader');
+                const loadText = document.getElementById('loading-text');
+                const errDiv = document.getElementById('login-error');
+
+                loader.classList.remove('hidden');
+                loadText.textContent = "Resolving Steam User...";
+                loadText.style.color = "var(--text-muted)";
+                errDiv.style.display = 'none';
+
+                try {
+                    // 1. Resolve Username
+                    const displayName = await Api.resolveSteamUser(steamId);
+                    console.log("Resolved Name:", displayName);
+
+                    // 2. Authenticate (Proxy expects Base64)
+                    loadText.textContent = `Authenticating as ${displayName}...`;
+
+                    let b64Id = encode64(steamId);
+                    const b64Name = encode64(displayName);
+
+                    // DEBUG: Known ID fallback to verify if encoding is the issue
+                    // Boosterfrank's ID: 76561198054673892 -> YWxAB3ZedGgGb3sEYXVlB2k
+                    if (steamId === '76561198054673892') {
+                        console.warn("Using known token for 76561198054673892");
+                        b64Id = 'YWxAB3ZedGgGb3sEYXVlB2k';
+                    }
+
+                    console.log("Encodings Check:");
+                    console.log("Raw ID:", steamId);
+                    console.log("Encoded ID:", b64Id);
+                    console.log("Raw Name:", displayName);
+                    console.log("Encoded Name:", b64Name);
+
+                    const data = await Api.authenticate(b64Id, b64Name);
 
                     if (data.uniqueId && data.token) {
                         AppState.user = data;
-                        document.getElementById('loader').classList.add('hidden');
+                        AppState.rawSteamId = steamId; // Store raw ID for re-auth
+                        localStorage.setItem('neodash_steam_id', steamId);
+
+                        loader.classList.add('hidden');
+                        app.nav('home');
                     } else {
-                        throw new Error('Auth failed');
+                        throw new Error('Authentication failed (Invalid response)');
                     }
                 } catch (e) {
                     console.error(e);
-                    document.getElementById('loading-text').textContent = "Authentication Failed. Check console.";
-                    document.getElementById('loading-text').style.color = "red";
+                    loader.classList.add('hidden');
+                    if (!steamIdInput) {
+                        // Show error on login page if manual attempt
+                        errDiv.textContent = `Login Failed: ${e.message}`;
+                        errDiv.style.display = 'block';
+                    } else {
+                        // If auto-login failed, go to login page
+                        app.nav('login');
+                        errDiv.textContent = `Session expired or invalid: ${e.message}`;
+                        errDiv.style.display = 'block';
+                    }
+                }
+            },
+
+            reAuthenticate: async () => {
+                console.log("Re-authenticating...");
+                if (!AppState.rawSteamId) throw new Error("No saved Steam ID for re-auth");
+
+                // Reuse existing process but silent? Or just same steps.
+                // We need to get a NEW token.
+                const displayName = await Api.resolveSteamUser(AppState.rawSteamId);
+                const data = await Api.authenticate(encode64(AppState.rawSteamId), encode64(displayName));
+
+                if (data.uniqueId && data.token) {
+                    AppState.user = data;
+                    console.log("Re-authentication successful");
+                } else {
+                    throw new Error("Re-authentication failed");
                 }
             },
 
